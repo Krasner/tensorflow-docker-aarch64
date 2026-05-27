@@ -5,6 +5,7 @@ FROM --platform=linux/arm64 nvidia/cuda:${CUDA_VER}-cudnn-devel-ubuntu${UBUNTU_V
 
 ARG PYTHON_VER
 ARG TF_VER
+ARG CUDA_VER
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -28,6 +29,11 @@ RUN apt-get update && apt-get install -y \
     zip \
     rsync \
     cpio \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --allow-change-held-packages \
+    libcudnn9-cuda-12=9.3.0.75-1 \
+    libcudnn9-dev-cuda-12=9.3.0.75-1 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-aarch64-linux-gnu.tar.xz \
@@ -57,7 +63,9 @@ ENV TF_NEED_TENSORRT=0
 ENV TF_CUDA_COMPUTE_CAPABILITIES="8.7"
 ENV TF_ENABLE_XLA=1
 ENV CC_OPT_FLAGS="-march=native"
-ENV HERMETIC_CUDA_COMPUTE_CAPABILITIES="8.7"
+# ENV HERMETIC_CUDA_COMPUTE_CAPABILITIES="8.7"
+ENV TF_CUDA_VERSION=${CUDA_VER}
+ENV TF_CUDNN_VERSION="9"
 
 # RUN yes "" | ./configure
 
@@ -99,6 +107,11 @@ FROM --platform=linux/arm64 nvidia/cuda:${CUDA_VER}-cudnn-runtime-ubuntu${UBUNTU
 
 ARG PYTHON_VER
 
+RUN apt-get update && apt-get install -y --allow-change-held-packages \
+    libcudnn9-cuda-12=9.3.0.75-1 \
+    libcudnn9-dev-cuda-12=9.3.0.75-1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install basic runtime engines
 RUN apt-get update && apt-get install -y \
     python${PYTHON_VER} \
@@ -109,7 +122,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER}
-RUN python${PYTHON_VER} -m pip install --no-cache-dir numpy packaging requests
+RUN python${PYTHON_VER} -m pip install --no-cache-dir numpy packaging requests nvidia-cuda-nvcc-cu12
+
+ENV XLA_FLAGS="--xla_gpu_cuda_data_dir=/usr/local/lib/python3.11/dist-packages/nvidia/cuda_nvcc"
 
 WORKDIR /app
 
@@ -119,6 +134,7 @@ COPY --from=builder /workspace/dist/include/ /usr/local/include/
 RUN ldconfig
 
 RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python3
+RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python
 
 # 2. Install the companion Python Wheel
 COPY --from=builder /workspace/dist/wheel/tensorflow-*.whl /app/
