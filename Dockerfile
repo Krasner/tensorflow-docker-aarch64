@@ -1,0 +1,130 @@
+ARG UBUNTU_VER
+ARG CUDA_VER
+
+FROM --platform=linux/arm64 nvidia/cuda:${CUDA_VER}-cudnn-devel-ubuntu${UBUNTU_VER} AS builder
+
+ARG PYTHON_VER
+ARG TF_VER
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    curl \
+    git \
+    wget \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    uuid-dev \
+    zlib1g-dev \
+    libpulse-dev \
+    libarchive-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    python${PYTHON_VER} \
+    python${PYTHON_VER}-dev \
+    python${PYTHON_VER}-distutils \
+    patch \
+    zip \
+    rsync \
+    cpio \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-aarch64-linux-gnu.tar.xz \
+    && tar -xvf clang+llvm-18.1.8-aarch64-linux-gnu.tar.xz \
+    && cp -r clang+llvm-18.1.8-aarch64-linux-gnu/* /usr
+
+RUN wget https://releases.bazel.build/7.4.1/release/bazel-7.4.1-linux-arm64 \
+    && chmod +x bazel-7.4.1-linux-arm64 \
+    && mv bazel-7.4.1-linux-arm64 /usr/local/bin/bazel
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER}
+RUN python${PYTHON_VER} -m pip install --no-cache-dir numpy packaging requests
+
+RUN git clone https://github.com/tensorflow/tensorflow.git
+
+WORKDIR tensorflow
+RUN git checkout r${TF_VER}
+
+RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python3
+
+ENV PYTHON_BIN_PATH=/usr/bin/python${PYTHON_VER}
+ENV PYTHON_LIB_PATH=/usr/local/lib/python${PYTHON_VER}/dist-packages
+ENV TF_NEED_CUDA=1
+ENV TF_CUDA_CLANG=1
+ENV GCC_HOST_COMPILER_PATH=/usr/bin/gcc
+ENV TF_NEED_TENSORRT=0
+ENV TF_CUDA_COMPUTE_CAPABILITIES="8.7"
+ENV TF_ENABLE_XLA=1
+ENV CC_OPT_FLAGS="-march=native"
+ENV HERMETIC_CUDA_COMPUTE_CAPABILITIES="8.7"
+
+# RUN yes "" | ./configure
+
+RUN --mount=type=cache,target=/root/.cache/bazel_gcc \
+    bazel clean --expunge && \
+    bazel build //tensorflow/tools/pip_package:wheel \
+    --repo_env=USE_PYWRAP_RULES=1 --repo_env=WHEEL_NAME=tensorflow \
+    --repo_env=CC=/usr/bin/clang-18 \
+    --repo_env=CXX=/usr/bin/clang++-18 \
+    --repo_env=TF_NCCL_USE_STUB=1 \
+    --repo_env=TF_NCCL_VERSION= \
+    --@local_config_cuda//cuda:include_cuda_libs=false \
+    --config=cuda_clang \
+    --config=cuda_wheel \
+    --define=no_nccl_support=true \
+    -c opt \
+    --config=nogcp \
+    --config=nonccl \
+    --action_env=CLANG_COMPILER_PATH=/usr/bin/clang-18 \
+    --host_action_env=CC=/usr/bin/clang-18 \
+    --host_action_env=CXX=/usr/bin/clang++-18 \
+    --copt=-Wno-unused-command-line-argument \
+    --host_copt=-Wno-unused-command-line-argument \
+    --jobs=16 \
+    --verbose_failures
+
+# --- Staging & Harvesting Area ---
+RUN mkdir -p /workspace/dist/lib \
+    && mkdir -p /workspace/dist/include/tensorflow \
+    && mkdir -p /workspace/dist/wheel
+
+RUN cp bazel-bin/tensorflow/tools/pip_package/wheel_house/tensorflow-*.whl /workspace/dist/wheel/
+
+# --- STAGE 2: Pristine Production Container ---
+ARG UBUNTU_VER
+ARG CUDA_VER
+
+FROM --platform=linux/arm64 nvidia/cuda:${CUDA_VER}-cudnn-runtime-ubuntu${UBUNTU_VER}
+
+ARG PYTHON_VER
+
+# Install basic runtime engines
+RUN apt-get update && apt-get install -y \
+    python${PYTHON_VER} \
+    python${PYTHON_VER}-dev \
+    python${PYTHON_VER}-distutils \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER}
+RUN python${PYTHON_VER} -m pip install --no-cache-dir numpy packaging requests
+
+WORKDIR /app
+
+# 1. Install the C++ Shared Libraries and Headers globally
+COPY --from=builder /workspace/dist/lib/ /usr/local/lib/
+COPY --from=builder /workspace/dist/include/ /usr/local/include/
+RUN ldconfig
+
+RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python3
+
+# 2. Install the companion Python Wheel
+COPY --from=builder /workspace/dist/wheel/tensorflow-*.whl /app/
+RUN python${PYTHON_VER} -m pip install /app/tensorflow-*.whl
+#  && rm /app/tensorflow-*.whl
+
+# Verify both interfaces are online and functional
+CMD python -c "import tensorflow as tf; print('Python GPU Check:', tf.config.list_physical_devices('GPU'))" && \
+    ldconfig -p | grep tensorflow
