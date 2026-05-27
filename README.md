@@ -1,4 +1,4 @@
-# Tensorflow docker image for aarch64
+# Tensorflow docker image for aarch64 (with GPU enabled)
 
 ## Build
 Use `build.sh` to build the docker container. There are the following arguments:
