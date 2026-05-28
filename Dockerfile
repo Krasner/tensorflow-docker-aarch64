@@ -124,7 +124,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VER}
 RUN python${PYTHON_VER} -m pip install --no-cache-dir numpy packaging requests nvidia-cuda-nvcc-cu12
 
-ENV XLA_FLAGS="--xla_gpu_cuda_data_dir=/usr/local/lib/python3.11/dist-packages/nvidia/cuda_nvcc"
+ENV XLA_FLAGS="--xla_gpu_cuda_data_dir=/usr/local/lib/python${PYTHON_VER}/dist-packages/nvidia/cuda_nvcc"
 
 WORKDIR /app
 
