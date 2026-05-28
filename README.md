@@ -10,7 +10,7 @@ Use `build.sh` to build the docker container. There are the following arguments:
 
 ## Run
 ```
-sudo docker run --rm --gpus=all -it tensorflow-${TF_VER}-cuda-${CUDA_VER}-python-${PYTHON_VER}-ubuntu-${UBUNTU_VER}:latest /bin/bash
+sudo docker run --rm --gpus=all -it tensorflow-${TF_VER}-cuda-${CUDA_VER}-python-${PYTHON_VER}-ubuntu-${UBUNTU_VER}-aarch64:latest /bin/bash
 ```
 
 ## Deployed
@@ -21,6 +21,10 @@ sudo docker run --rm --gpus=all -it tensorflow-${TF_VER}-cuda-${CUDA_VER}-python
 ## Notes
 ### GPU access in docker
 If you see the following error when running the container with `docker run --gpus=all`
+```
+docker: Error response from daemon: failed to discover GPU vendor from CDI: no known GPU vendor found
+```
+
 You may need to install `nvidia-container-toolkit`:
 
 See https://stackoverflow.com/questions/75118992/docker-error-response-from-daemon-could-not-select-device-driver-with-capab
