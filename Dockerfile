@@ -138,8 +138,7 @@ RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python
 
 # 2. Install the companion Python Wheel
 COPY --from=builder /workspace/dist/wheel/tensorflow-*.whl /app/
-RUN python${PYTHON_VER} -m pip install /app/tensorflow-*.whl
-#  && rm /app/tensorflow-*.whl
+RUN python${PYTHON_VER} -m pip install /app/tensorflow-*.whl && rm /app/tensorflow-*.whl
 
 # Verify both interfaces are online and functional
 CMD python -c "import tensorflow as tf; print('Python GPU Check:', tf.config.list_physical_devices('GPU'))" && \
