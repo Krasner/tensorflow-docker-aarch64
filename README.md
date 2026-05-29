@@ -16,6 +16,7 @@ sudo docker run --rm --gpus=all -it tensorflow-${TF_VER}-cuda-${CUDA_VER}-python
 ## Deployed
 | Tensorflow |  CUDA  | Python | Ubuntu | docker image |
 |:----------:|:------:|:------:|:------:|:------------:|
+|2.21|12.5.1|3.11 |22.04|krasnera/tensorflow-2.21-cuda-12.5.1-python-3.11-ubuntu-22.04-aarch64|
 |2.20|12.5.1|3.11 |22.04|krasnera/tensorflow-2.20-cuda-12.5.1-python-3.11-ubuntu-22.04-aarch64|
 |2.19|12.5.1|3.11 |22.04|krasnera/tensorflow-2.19-cuda-12.5.1-python-3.11-ubuntu-22.04-aarch64|
 
