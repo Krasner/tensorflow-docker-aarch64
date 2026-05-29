@@ -145,6 +145,10 @@ COPY --from=builder /workspace/dist/include/ /usr/local/include/
 COPY --from=builder /usr/local/cuda/lib64/libcupti.so.12 /usr/local/cuda/lib64/libcupti.so.12
 RUN ldconfig
 
+RUN STUB_PATH=$(find /usr/local/cuda/ -name "libcuda.so" | head -n 1) && \
+    ln -sf "$STUB_PATH" /usr/lib/aarch64-linux-gnu/libcuda.so.1 && \
+    ln -sf "$STUB_PATH" /usr/lib/aarch64-linux-gnu/libcuda.so
+
 RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python3
 RUN ln -sf /usr/bin/python${PYTHON_VER} /usr/bin/python
 
