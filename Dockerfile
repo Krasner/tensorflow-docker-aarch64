@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     rsync \
     cpio \
+    xxd \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --allow-change-held-packages \
@@ -89,7 +90,7 @@ RUN --mount=type=cache,target=/root/.cache/bazel_gcc \
     --host_action_env=CXX=/usr/bin/clang++-18 \
     --copt=-Wno-unused-command-line-argument \
     --host_copt=-Wno-unused-command-line-argument \
-    --jobs=16 \
+    --jobs=64 \
     --verbose_failures
 
 # --- Staging & Harvesting Area ---
