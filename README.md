@@ -8,6 +8,9 @@ Use `build.sh` to build the docker container. There are the following arguments:
 `PYTHON_VER` defaults to 3.11 \
 `TF_VER` defaults to 2.20 
 
+### Notes:
+- To build tensorflow 2.19 see branch r2.19 since it requires slightly different bazel build configs
+
 ## Run
 ```
 sudo docker run --rm --gpus=all -it tensorflow-${TF_VER}-cuda-${CUDA_VER}-python-${PYTHON_VER}-ubuntu-${UBUNTU_VER}-aarch64:latest /bin/bash
